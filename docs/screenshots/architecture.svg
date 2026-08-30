@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700">
+  <defs><style>.t{font-family:Segoe UI,Arial;font-size:20px;fill:#172033}.h{font-size:30px;font-weight:700}.s{font-size:16px}.box{rx:18;stroke-width:3}.arrow{stroke:#334155;stroke-width:3;fill:none;marker-end:url(#a)}</style><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#334155"/></marker></defs>
+  <rect width="1200" height="700" fill="#f8fafc"/>
+  <text x="600" y="48" text-anchor="middle" class="t h">TravelMemory AWS Architecture</text>
+  <rect x="180" y="80" width="960" height="560" rx="26" fill="#eef6ff" stroke="#2563eb" stroke-width="4"/>
+  <text x="210" y="120" class="t" font-weight="700">AWS VPC · 10.20.0.0/16</text>
+  <rect x="225" y="150" width="410" height="420" class="box" fill="#ecfdf5" stroke="#16a34a"/>
+  <text x="250" y="190" class="t" font-weight="700">Public subnet · 10.20.1.0/24</text>
+  <rect x="270" y="245" width="320" height="190" class="box" fill="#fff" stroke="#16a34a"/>
+  <text x="430" y="290" text-anchor="middle" class="t" font-weight="700">Web EC2</text>
+  <text x="430" y="325" text-anchor="middle" class="t s">Nginx :80 → Express :3001</text>
+  <text x="430" y="355" text-anchor="middle" class="t s">React production build</text>
+  <text x="430" y="385" text-anchor="middle" class="t s">SSH only from administrator /32</text>
+  <rect x="690" y="150" width="405" height="420" class="box" fill="#fff7ed" stroke="#ea580c"/>
+  <text x="715" y="190" class="t" font-weight="700">Private subnet · 10.20.2.0/24</text>
+  <rect x="735" y="245" width="315" height="190" class="box" fill="#fff" stroke="#ea580c"/>
+  <text x="892" y="290" text-anchor="middle" class="t" font-weight="700">Database EC2</text>
+  <text x="892" y="325" text-anchor="middle" class="t s">MongoDB :27017 + authentication</text>
+  <text x="892" y="355" text-anchor="middle" class="t s">No public IPv4 address</text>
+  <text x="892" y="385" text-anchor="middle" class="t s">Encrypted gp3 volume</text>
+  <path d="M590 335 L730 335" class="arrow"/><text x="660" y="320" text-anchor="middle" class="t s">private only</text>
+  <rect x="20" y="260" width="125" height="100" class="box" fill="#fff" stroke="#475569"/><text x="82" y="300" text-anchor="middle" class="t s">Internet</text><text x="82" y="330" text-anchor="middle" class="t s">HTTP / SSH</text>
+  <path d="M145 310 L265 310" class="arrow"/>
+  <rect x="440" y="475" width="200" height="70" class="box" fill="#fff" stroke="#2563eb"/><text x="540" y="518" text-anchor="middle" class="t s">Internet Gateway</text>
+  <rect x="785" y="475" width="200" height="70" class="box" fill="#fff" stroke="#2563eb"/><text x="885" y="518" text-anchor="middle" class="t s">NAT Gateway</text>
+  <path d="M785 510 L645 510" class="arrow"/>
+  <text x="600" y="675" text-anchor="middle" class="t s">Provisioned by Terraform · Configured by Ansible · Monitored through CloudWatch/SSM IAM role</text>
+</svg>

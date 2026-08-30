@@ -1,0 +1,147 @@
+---
+- name: Install NodeSource signing key
+  ansible.builtin.get_url:
+    url: https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key
+    dest: /usr/share/keyrings/nodesource.asc
+    mode: "0644"
+
+- name: Configure Node.js 20 repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/nodesource.asc] https://deb.nodesource.com/node_20.x nodistro main"
+    filename: nodesource
+    state: present
+
+- name: Install Node.js, npm, and Nginx
+  ansible.builtin.apt:
+    name:
+      - nodejs
+      - nginx
+    state: present
+    update_cache: true
+
+- name: Create unprivileged application account
+  ansible.builtin.user:
+    name: "{{ app_user }}"
+    system: true
+    create_home: true
+    home: "{{ app_dir }}"
+    shell: /usr/sbin/nologin
+
+- name: Clone the TravelMemory repository
+  ansible.builtin.git:
+    repo: "{{ app_repository }}"
+    dest: "{{ app_dir }}"
+    version: "{{ app_repository_version }}"
+    force: true
+  become_user: "{{ app_user }}"
+  notify: Restart TravelMemory
+
+- name: Configure backend environment
+  ansible.builtin.template:
+    src: backend.env.j2
+    dest: "{{ app_dir }}/backend/.env"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: "0600"
+  no_log: true
+  notify: Restart TravelMemory
+
+- name: Install backend dependencies reproducibly
+  community.general.npm:
+    path: "{{ app_dir }}/backend"
+    ci: true
+    production: true
+  become_user: "{{ app_user }}"
+  notify: Restart TravelMemory
+
+- name: Configure frontend production environment
+  ansible.builtin.copy:
+    dest: "{{ app_dir }}/frontend/.env.production"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: "0644"
+    content: "REACT_APP_BACKEND_URL=http://{{ ansible_host }}\n"
+  notify: Build frontend
+
+- name: Install frontend dependencies reproducibly
+  community.general.npm:
+    path: "{{ app_dir }}/frontend"
+    ci: true
+  become_user: "{{ app_user }}"
+  notify: Build frontend
+
+- name: Deploy backend systemd service
+  ansible.builtin.template:
+    src: travelmemory.service.j2
+    dest: /etc/systemd/system/travelmemory.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart TravelMemory
+
+- name: Flush handlers so the frontend is available to Nginx
+  ansible.builtin.meta: flush_handlers
+
+- name: Deploy Nginx reverse-proxy configuration
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/sites-available/travelmemory
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload Nginx
+
+- name: Enable TravelMemory Nginx site
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/travelmemory
+    dest: /etc/nginx/sites-enabled/travelmemory
+    state: link
+  notify: Reload Nginx
+
+- name: Disable default Nginx site
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Reload Nginx
+
+- name: Validate Nginx configuration
+  ansible.builtin.command: nginx -t
+  changed_when: false
+
+- name: Enable and start application services
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  loop:
+    - travelmemory
+    - nginx
+
+- name: Permit SSH in web firewall
+  community.general.ufw:
+    rule: allow
+    src: "{{ admin_cidr }}"
+    port: "22"
+    proto: tcp
+
+- name: Permit public HTTP in web firewall
+  community.general.ufw:
+    rule: allow
+    port: "80"
+    proto: tcp
+
+- name: Enable web firewall
+  community.general.ufw:
+    state: enabled
+
+- name: Verify backend health through Nginx
+  ansible.builtin.uri:
+    url: http://127.0.0.1/hello
+    status_code: 200
+    return_content: true
+  register: backend_health
+  retries: 12
+  delay: 5
+  until: backend_health.status == 200 and 'Hello World!' in backend_health.content

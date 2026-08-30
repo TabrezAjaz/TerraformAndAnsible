@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>TravelMemory — Terraform and Ansible Implementation Report</title>
+  <style>
+    :root{--navy:#0f172a;--blue:#2563eb;--cyan:#0891b2;--muted:#475569;--line:#dbe4f0;--paper:#fff;--bg:#eef3f9;--green:#15803d}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--navy);font:16px/1.65 "Segoe UI",Arial,sans-serif}
+    main{max-width:1040px;margin:32px auto;background:var(--paper);box-shadow:0 16px 45px #0f172a18;border-radius:18px;overflow:hidden}
+    header{padding:60px 70px;color:#fff;background:linear-gradient(135deg,#0f172a,#1e3a8a 60%,#0891b2)}
+    header p{max-width:760px;color:#dbeafe;font-size:19px} .tag{display:inline-block;padding:6px 12px;border:1px solid #ffffff55;border-radius:999px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:12px}
+    h1{font-size:44px;line-height:1.12;margin:20px 0 10px} h2{font-size:29px;margin:46px 0 14px;padding-bottom:8px;border-bottom:2px solid var(--line)} h3{font-size:20px;margin-top:26px;color:#1e3a8a}
+    article{padding:45px 70px 70px} p,li{color:#334155} a{color:var(--blue)}
+    .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:28px 0}.card{border:1px solid var(--line);border-radius:14px;padding:18px;background:#f8fafc}.card strong{display:block;font-size:24px;color:var(--blue)}
+    .architecture{width:100%;border:1px solid var(--line);border-radius:14px;background:#f8fafc;margin:12px 0 20px}
+    table{width:100%;border-collapse:collapse;margin:16px 0 28px}th,td{text-align:left;padding:11px 13px;border:1px solid var(--line);vertical-align:top}th{background:#eff6ff;color:#1e3a8a}.ok{color:var(--green);font-weight:700}
+    code{background:#eef2ff;padding:2px 6px;border-radius:5px;color:#3730a3}.note{border-left:5px solid var(--cyan);background:#ecfeff;padding:14px 18px;border-radius:8px;margin:20px 0}.warning{border-left-color:#d97706;background:#fffbeb}
+    footer{padding:22px 70px;background:#0f172a;color:#cbd5e1;text-align:center}
+    @media(max-width:700px){main{margin:0;border-radius:0}header,article{padding:35px 25px}.summary{grid-template-columns:1fr}h1{font-size:34px}}
+    @media print{body{background:#fff}main{margin:0;max-width:none;box-shadow:none}.card,table,img{break-inside:avoid}h2{break-after:avoid}header{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  </style>
+</head>
+<body><main>
+  <header>
+    <span class="tag">Graded Assignment · DevOps / AWS</span>
+    <h1>Deploying a MERN Application through Terraform and Ansible</h1>
+    <p>A secure, repeatable AWS deployment of the prescribed TravelMemory application using infrastructure as code and configuration management.</p>
+  </header>
+  <article>
+    <section class="summary">
+      <div class="card"><strong>2 EC2</strong>Public web and private database hosts</div>
+      <div class="card"><strong>IaC</strong>Terraform-provisioned AWS networking</div>
+      <div class="card"><strong>Automated</strong>Ansible configuration and deployment</div>
+    </section>
+
+    <h2>1. Executive Summary</h2>
+    <p>This implementation deploys the required <a href="https://github.com/UnpredictablePrashant/TravelMemory">TravelMemory</a> MERN application on AWS. Terraform provisions the network, security boundaries, IAM role, and two Ubuntu EC2 instances. Ansible then installs and secures MongoDB, installs Node.js and Nginx, builds React, configures Express, and verifies the running service.</p>
+    <div class="note"><strong>Scope:</strong> the design intentionally follows the assignment requirement of one public web server and one private database server. Production enhancements and limitations are documented below.</div>
+
+    <h2>2. Architecture and Component Interaction</h2>
+    <img class="architecture" src="screenshots/architecture.svg" alt="TravelMemory AWS architecture">
+    <ol>
+      <li>The browser requests the web server's Terraform output URL over port 80.</li>
+      <li>Nginx serves the optimized React build and reverse-proxies <code>/trip</code> and <code>/hello</code> to Express on loopback port 3001.</li>
+      <li>Express/Mongoose authenticates as the least-privilege <code>travel_app</code> user and connects to MongoDB over the VPC private address.</li>
+      <li>MongoDB persists travel records and returns them through Express, Nginx, and React.</li>
+    </ol>
+
+    <h2>3. Terraform Infrastructure</h2>
+    <table><thead><tr><th>Requirement</th><th>Implementation</th><th>Status</th></tr></thead><tbody>
+      <tr><td>AWS initialization</td><td>AWS provider 5.x, configurable region/profile, default project tags</td><td class="ok">Implemented</td></tr>
+      <tr><td>VPC and subnets</td><td><code>10.20.0.0/16</code> VPC, public <code>10.20.1.0/24</code>, private <code>10.20.2.0/24</code></td><td class="ok">Implemented</td></tr>
+      <tr><td>Internet/NAT gateways</td><td>Internet Gateway for public routing; NAT Gateway and Elastic IP for private outbound updates</td><td class="ok">Implemented</td></tr>
+      <tr><td>EC2 instances</td><td>Official Ubuntu 22.04 AMI; public web host and private MongoDB host</td><td class="ok">Implemented</td></tr>
+      <tr><td>Security groups</td><td>Web SSH restricted to administrator CIDR; HTTP public; MongoDB/SSH accepted only from web SG</td><td class="ok">Implemented</td></tr>
+      <tr><td>IAM roles</td><td>EC2 instance profile with SSM core and CloudWatch Agent managed policies</td><td class="ok">Implemented</td></tr>
+      <tr><td>Outputs</td><td>Web public IP, application URL, private addresses, generated inventory path</td><td class="ok">Implemented</td></tr>
+    </tbody></table>
+    <p>Both instances require IMDSv2, use encrypted gp3 root volumes, and enable detailed monitoring. Terraform generates the Ansible inventory after instance creation. The private host's inventory entry uses the web server as an SSH bastion.</p>
+
+    <h2>4. Ansible Configuration and Deployment</h2>
+    <h3>Common role</h3><p>Installs baseline packages, enables unattended security updates, disables direct root and password SSH login, and sets deny-by-default UFW policy.</p>
+    <h3>MongoDB role</h3><p>Installs MongoDB 7 from the signed official repository; binds only to loopback and the private address; enables authorization; creates separate administrator and application users; and permits SSH/MongoDB only from the web server. Passwords stay outside Git and are suppressed from Ansible logs.</p>
+    <h3>Web role</h3><p>Installs Node.js 20, NPM, and Nginx; creates an unprivileged account; clones TravelMemory; installs locked dependencies; builds React; and runs Express as a hardened systemd service. Nginx handles public traffic and React route fallback.</p>
+
+    <h2>5. Security Hardening</h2>
+    <ul>
+      <li>No public IPv4 address or direct Internet ingress exists for MongoDB.</li>
+      <li>Security groups and UFW independently enforce minimum network access.</li>
+      <li>MongoDB authorization is enabled and the application account has only <code>readWrite</code> on its database.</li>
+      <li>SSH is key-only, root login is disabled, and public SSH is restricted to a supplied <code>/32</code> CIDR.</li>
+      <li>Secrets, PEM keys, generated inventory, variable files, and Terraform state are excluded from version control.</li>
+      <li>The backend is not publicly exposed on port 3001 and runs under an unprivileged system account.</li>
+    </ul>
+
+    <h2>6. Deployment Procedure</h2>
+    <ol>
+      <li>Authenticate AWS CLI and create/select an EC2 key pair in the deployment region.</li>
+      <li>Copy <code>terraform.tfvars.example</code> to <code>terraform.tfvars</code> and provide region, restricted administrator CIDR, key-pair name, and PEM path.</li>
+      <li>From WSL/Linux, execute <code>scripts/deploy.sh</code>. It generates local secrets, initializes/validates/applies Terraform, installs the Ansible collection, runs all roles, and checks the backend.</li>
+      <li>Open the printed application URL, add an experience, run <code>scripts/validate.sh</code>, and collect evidence.</li>
+      <li>After assessment, execute <code>scripts/destroy.sh</code> to stop all EC2, public IPv4, and NAT Gateway charges.</li>
+    </ol>
+
+    <h2>7. Testing and Acceptance Criteria</h2>
+    <table><thead><tr><th>Check</th><th>Expected result</th></tr></thead><tbody>
+      <tr><td>Terraform validation/apply</td><td>No validation errors; two instances created; application URL printed</td></tr>
+      <tr><td>Ansible recap</td><td>Zero failed and zero unreachable hosts</td></tr>
+      <tr><td>Frontend</td><td>React root HTML and TravelMemory interface load from public IP</td></tr>
+      <tr><td>Backend</td><td><code>/hello</code> returns <code>Hello World!</code> through Nginx</td></tr>
+      <tr><td>Database path</td><td><code>/trip/</code> returns data and a submitted experience persists</td></tr>
+      <tr><td>Isolation</td><td>Database has no public IP; ports 3001/27017 are unavailable from the Internet</td></tr>
+    </tbody></table>
+
+    <h2>8. Evidence Register</h2>
+    <p>The architecture diagram is included with the submission. Real execution screenshots must show Terraform apply/output, VPC subnets, both EC2 instances, security-group rules, Ansible recap, the application home page, Add Experience form, and the persisted experience. The exact numbered filenames are listed in the screenshot checklist.</p>
+    <div class="note warning"><strong>Evidence integrity:</strong> screenshots of AWS resources and a working deployment cannot be fabricated before running against the student's AWS account. Insert only genuine captures after deployment.</div>
+
+    <h2>9. Limitations and Production Improvements</h2>
+    <p>HTTP is used because no domain or TLS certificate was supplied. One Availability Zone and one database instance do not provide high availability. A production revision should add Route 53, ACM/HTTPS via an Application Load Balancer, multi-AZ instances, backups/snapshots, centralized secret storage and rotation, alarms, and automated application tests.</p>
+
+    <h2>10. Conclusion</h2>
+    <p>The repository covers every stated infrastructure and configuration requirement with repeatable automation and layered security. The deployment can be recreated from source, validated through defined health checks, documented with genuine evidence, and fully destroyed to control cost.</p>
+  </article>
+  <footer>TravelMemory · Terraform + Ansible · AWS Deployment Assignment</footer>
+</main></body></html>

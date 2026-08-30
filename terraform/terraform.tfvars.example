@@ -1,0 +1,7 @@
+aws_region       = "ap-south-1"
+aws_profile      = null
+project_name     = "travel-memory"
+admin_cidr       = "203.0.113.10/32"
+key_name         = "travel-memory-key"
+private_key_path = "~/.ssh/travel-memory-key.pem"
+instance_type    = "t3.micro"

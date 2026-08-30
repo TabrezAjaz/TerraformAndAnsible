@@ -1,0 +1,86 @@
+---
+- name: Install MongoDB repository signing key
+  ansible.builtin.get_url:
+    url: https://pgp.mongodb.com/server-7.0.asc
+    dest: /usr/share/keyrings/mongodb-server-7.0.asc
+    mode: "0644"
+
+- name: Configure MongoDB 7 repository
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.asc] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse"
+    filename: mongodb-org-7.0
+    state: present
+
+- name: Install MongoDB and shell
+  ansible.builtin.apt:
+    name:
+      - mongodb-org
+      - mongodb-mongosh
+    state: present
+    update_cache: true
+
+- name: Deploy secure MongoDB configuration
+  ansible.builtin.template:
+    src: mongod.conf.j2
+    dest: /etc/mongod.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart MongoDB
+
+- name: Start and enable MongoDB
+  ansible.builtin.service:
+    name: mongod
+    state: started
+    enabled: true
+
+- name: Flush MongoDB restart before user provisioning
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for MongoDB to accept local connections
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ mongodb_port }}"
+    timeout: 60
+
+- name: Create protected deployment state directory
+  ansible.builtin.file:
+    path: /etc/travelmemory
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Create MongoDB administrative and application users
+  ansible.builtin.shell: |
+    set -euo pipefail
+    mongosh --quiet --host 127.0.0.1 --eval '
+      db = db.getSiblingDB("admin");
+      db.createUser({user: {{ mongodb_admin_user | to_json }}, pwd: {{ mongodb_admin_password | to_json }}, roles: [{role: "userAdminAnyDatabase", db: "admin"}, {role: "readWriteAnyDatabase", db: "admin"}]});
+      db.auth({{ mongodb_admin_user | to_json }}, {{ mongodb_admin_password | to_json }});
+      db = db.getSiblingDB({{ mongodb_database | to_json }});
+      db.createUser({user: {{ mongodb_app_user | to_json }}, pwd: {{ mongodb_app_password | to_json }}, roles: [{role: "readWrite", db: {{ mongodb_database | to_json }}}]});
+    '
+    touch /etc/travelmemory/.mongodb-users-created
+  args:
+    executable: /bin/bash
+    creates: /etc/travelmemory/.mongodb-users-created
+  no_log: true
+
+- name: Permit SSH from the web bastion in UFW
+  community.general.ufw:
+    rule: allow
+    src: "{{ web_private_ip }}"
+    port: "22"
+    proto: tcp
+
+- name: Permit MongoDB only from the web server in UFW
+  community.general.ufw:
+    rule: allow
+    src: "{{ web_private_ip }}"
+    port: "{{ mongodb_port }}"
+    proto: tcp
+
+- name: Enable database firewall
+  community.general.ufw:
+    state: enabled

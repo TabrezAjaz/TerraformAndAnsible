@@ -1,0 +1,13 @@
+---
+project_name: travel-memory
+app_user: travelmemory
+app_dir: /opt/travelmemory
+app_repository: https://github.com/UnpredictablePrashant/TravelMemory.git
+app_repository_version: main
+backend_port: 3001
+mongodb_port: 27017
+mongodb_database: travelmemory
+mongodb_admin_user: travel_admin
+mongodb_app_user: travel_app
+mongodb_admin_password: "{{ lookup('env', 'MONGODB_ADMIN_PASSWORD') }}"
+mongodb_app_password: "{{ lookup('env', 'MONGODB_APP_PASSWORD') }}"

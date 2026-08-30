@@ -1,0 +1,20 @@
+---
+- name: Build frontend
+  ansible.builtin.command: npm run build
+  args:
+    chdir: "{{ app_dir }}/frontend"
+  become_user: "{{ app_user }}"
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart TravelMemory
+  ansible.builtin.service:
+    name: travelmemory
+    state: restarted
+
+- name: Reload Nginx
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded

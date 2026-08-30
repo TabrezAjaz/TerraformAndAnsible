@@ -1,0 +1,19 @@
+---
+- name: Apply baseline security to all TravelMemory hosts
+  hosts: all
+  become: true
+  gather_facts: true
+  roles:
+    - common
+
+- name: Install and secure MongoDB
+  hosts: dbservers
+  become: true
+  roles:
+    - mongodb
+
+- name: Build and deploy the TravelMemory application
+  hosts: webservers
+  become: true
+  roles:
+    - web

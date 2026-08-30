@@ -1,0 +1,54 @@
+---
+- name: Reject missing deployment secrets
+  ansible.builtin.assert:
+    that:
+      - mongodb_admin_password | length >= 16
+      - mongodb_app_password | length >= 16
+    fail_msg: Set MONGODB_ADMIN_PASSWORD and MONGODB_APP_PASSWORD to values of at least 16 characters.
+  no_log: true
+
+- name: Update apt cache and install baseline packages
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+      - git
+      - ufw
+      - unattended-upgrades
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Enable automatic security updates
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+
+- name: Disable direct root SSH login and password authentication
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/99-travelmemory-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      PermitRootLogin no
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      X11Forwarding no
+  notify: Restart SSH
+
+- name: Set incoming firewall policy to deny
+  community.general.ufw:
+    direction: incoming
+    policy: deny
+
+- name: Set outgoing firewall policy to allow
+  community.general.ufw:
+    direction: outgoing
+    policy: allow
