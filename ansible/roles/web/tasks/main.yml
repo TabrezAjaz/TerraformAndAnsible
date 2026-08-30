@@ -23,9 +23,20 @@
   ansible.builtin.user:
     name: "{{ app_user }}"
     system: true
-    create_home: true
-    home: "{{ app_dir }}"
+    create_home: false
+    home: /nonexistent
     shell: /usr/sbin/nologin
+
+- name: Check whether the application repository is already cloned
+  ansible.builtin.stat:
+    path: "{{ app_dir }}/.git"
+  register: app_git_directory
+
+- name: Remove incomplete first-clone directory
+  ansible.builtin.file:
+    path: "{{ app_dir }}"
+    state: absent
+  when: not app_git_directory.stat.exists
 
 - name: Clone the TravelMemory repository
   ansible.builtin.git:
