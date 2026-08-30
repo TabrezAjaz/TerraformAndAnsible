@@ -1,0 +1,7 @@
+Graded Assignment: Deploying a MERN Application through Terraform and Ansible
+
+GitHub Repository:
+https://github.com/TabrezAjaz/TerraformAndAnsible
+
+Live TravelMemory Application (available while AWS resources are running):
+http://13.233.113.78

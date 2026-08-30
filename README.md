@@ -2,6 +2,8 @@
 
 This repository is the complete implementation for the graded assignment **Deploying a MERN Application through Terraform and Ansible**. Terraform provisions two Ubuntu EC2 instances in an AWS VPC; Ansible installs, secures, builds, and runs the required [TravelMemory](https://github.com/UnpredictablePrashant/TravelMemory) application.
 
+**Live deployment:** [http://13.233.113.78](http://13.233.113.78) (available while the assignment AWS resources remain running).
+
 ![Architecture](docs/screenshots/architecture.svg)
 
 ## Assignment coverage

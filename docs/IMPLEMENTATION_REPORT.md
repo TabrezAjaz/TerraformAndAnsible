@@ -69,6 +69,16 @@ Record screenshots according to the evidence checklist. Evidence must come from 
 - Direct Internet access to ports 3001 and 27017 is blocked.
 - Validation prints PASS for frontend, backend, and MongoDB path.
 
+### Verified deployment result — 30 August 2026
+
+- Application URL: `http://13.233.113.78`
+- Web private IP: `10.20.1.112`
+- Database private IP: `10.20.2.108`
+- Terraform infrastructure applied successfully in `ap-south-1`.
+- Final idempotency run: database `ok=19 failed=0`; web `ok=29 failed=0`.
+- `/hello` returned `Hello World!`; `/trip/` returned persisted MongoDB data.
+- A sample **Incredible India** experience was added and displayed through React.
+
 ## 9. Evidence register
 
 The architecture diagram is included now. Cloud and application screenshots must be captured after deployment and placed in `docs/screenshots` using the numbered filenames in its README. This report intentionally does not claim that unexecuted cloud resources or fabricated screenshots are deployment evidence.
